@@ -110,7 +110,11 @@ class KeepalivedConfBaseMixin(object):
 class KeepalivedConfTestCase(base.BaseTestCase,
                              KeepalivedConfBaseMixin):
 
-    expected = """vrrp_instance VR_1 {
+    expected = """global_defs {
+    notification_email_from neutron@openstack.dummy
+    router_id neutron
+}
+vrrp_instance VR_1 {
     state MASTER
     interface eth0
     virtual_router_id 1
@@ -166,13 +170,26 @@ vrrp_instance VR_2 {
         self.assertEqual(self.expected, config.get_config_str())
 
         config.reset()
-        self.assertEqual('', config.get_config_str())
+        reference = '''global_defs {
+    notification_email_from %s
+    router_id %s
+}''' % (keepalived.KEEPALIVED_EMAIL_FROM, keepalived.KEEPALIVED_ROUTER_ID)
+        self.assertEqual(reference, config.get_config_str())
 
     def test_get_existing_vip_ip_addresses_returns_list(self):
         config = self._get_config()
         instance = config.get_instance(1)
         current_vips = sorted(instance.get_existing_vip_ip_addresses('eth2'))
         self.assertEqual(['192.168.2.0/24', '192.168.3.0/24'], current_vips)
+
+    def test_build_config(self):
+        config = keepalived.KeepalivedConf()
+
+        self.assertEqual(['global_defs {',
+                          '    notification_email_from %s'
+                          % keepalived.KEEPALIVED_EMAIL_FROM,
+                          '    router_id %s' % keepalived.KEEPALIVED_ROUTER_ID,
+                          '}'], config.build_config())
 
 
 class KeepalivedStateExceptionTestCase(base.BaseTestCase):
@@ -246,7 +263,11 @@ class KeepalivedInstanceTestCase(base.BaseTestCase,
         instance.remove_vips_vroutes_by_interface('eth2')
         instance.remove_vips_vroutes_by_interface('eth10')
 
-        expected = """vrrp_instance VR_1 {
+        expected = """global_defs {
+    notification_email_from neutron@openstack.dummy
+    router_id neutron
+}
+vrrp_instance VR_1 {
     state MASTER
     interface eth0
     virtual_router_id 1
